@@ -10,6 +10,8 @@ require Exporter;
 our @ISA       = qw(Exporter);
 our @EXPORT_OK = qw(list_software);
 
+# VERSION
+
 # XXX import catalog from software-catalog
 # (https://github.com/sharyanto/software-catalog)
 my @software = (
@@ -87,6 +89,9 @@ This module contains catalog of software.
 Currently the main use for this module is to establish a common name for a
 software and find the Debian source package name(s) (and possibly others too in
 the future, like Fedora package, FreeBSD port, etc) for it.
+
+Eventually, if the project takes off, this will also contain
+summary/description/URL/license for each software.
 
 
 =head1 FAQ
