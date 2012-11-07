@@ -106,11 +106,12 @@ die "BUG: Can't generate func: $res->[0] - $res->[1]"
     unless $res->[0] == 200;
 
 $SPEC{get_software_info} = {
+    v => 1.1,
     summary => 'Get info on a software',
     args => {
         id => {
-            summary  => $table_spec->{fields}{summary},
-            schema   => $table_spec->{fields}{schema},
+            summary  => $table_spec->{fields}{id}{summary},
+            schema   => $table_spec->{fields}{id}{schema},
             req      => 1,
             pos      => 0,
         },
