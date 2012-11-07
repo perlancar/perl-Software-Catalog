@@ -116,6 +116,7 @@ $SPEC{get_software_info} = {
             pos      => 0,
         },
     },
+    "_perinci.sub.wrapper.validate_args" => 0,
 };
 sub get_software_info {
     my %args = @_;
