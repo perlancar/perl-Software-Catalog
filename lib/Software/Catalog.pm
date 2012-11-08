@@ -57,15 +57,16 @@ my @software = (
     },
 );
 
-my $deb_re = qr/\A[a-z0-9]+(-[a-z0-9]+)*\z/;
-my $tag_re = qr/\A([a-z0-9]+(-[a-z0-9]+)*::)?[a-z0-9]+(-[a-z0-9]+)*\z/x;
+our $swid_re = qr/\A[a-z]([a-z0-9_])*\z/;
+our $deb_re  = qr/\A[a-z0-9]+(-[a-z0-9]+)*\z/;
+our $tag_re  = qr/\A([a-z0-9]+(-[a-z0-9]+)*::)?[a-z0-9]+(-[a-z0-9]+)*\z/x;
 
 my $table_spec = {
     fields => {
         id => {
             index      => 0,
             schema     => ['str*' => {
-                match => $deb_re,
+                match => $swid_re,
             }],
             searchable => 1,
         },
