@@ -139,6 +139,7 @@ sub get_software_info {
 
  use Software::Catalog qw(list_software get_software_info);
  my $res = list_software();
+ $res    = get_software_info(software_id => 'wordpress');
 
 
 =head1 STATUS
