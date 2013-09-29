@@ -1,6 +1,6 @@
 package Software::Catalog;
 
-use 5.010;
+use 5.010001;
 use strict;
 use warnings;
 
@@ -169,4 +169,3 @@ L<Software::Release::Watch>
 L<Software::Installation::Detect>
 
 =cut
-
