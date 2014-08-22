@@ -117,11 +117,10 @@ $SPEC{get_software_info} = {
             pos      => 0,
         },
     },
-    "_perinci.sub.wrapper.validate_args" => 0,
 };
 sub get_software_info {
     my %args = @_;
-    my $id = $args{id}; # VALIDATE_ARG
+    my $id = $args{id};
 
     my $res = list_software("id" => $id, detail=>1);
     return [404, "No such software"] unless @{$res->[2]};
