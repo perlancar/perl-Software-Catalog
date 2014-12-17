@@ -1,5 +1,8 @@
 package Software::Catalog;
 
+# DATE
+# VERSION
+
 use 5.010001;
 use strict;
 use warnings;
@@ -13,9 +16,12 @@ our @EXPORT_OK = qw(
                        list_software
                );
 
-# VERSION
-
 our %SPEC;
+
+$SPEC{':package'} = {
+    v => 1.1,
+    summary => 'Software catalog',
+};
 
 # XXX import catalog from software-catalog
 # (https://github.com/sharyanto/software-catalog)
@@ -132,7 +138,7 @@ sub get_software_info {
 # retrieving all info becomes heavy).
 
 1;
-# ABSTRACT: Software catalog
+# ABSTRACT:
 
 =head1 SYNOPSIS
 
