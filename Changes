@@ -1,3 +1,11 @@
+1.0.0   2018-09-13 (PERLANCAR) (unreleased)
+
+        [INCOMPATIBLE CHANGES]
+
+        - Complete rewrite. Remove all routines from Software::Catalog, the
+          module becomes a specification.
+
+
 0.05    2015-09-04 (PERLANCAR)
 
 	- No functional changes.
