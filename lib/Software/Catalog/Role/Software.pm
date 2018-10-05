@@ -6,7 +6,12 @@ package Software::Catalog::Role::Software;
 use Role::Tiny;
 
 requires 'canon2native_arch_map';
-#requires 'get_latest_version';
+requires 'get_latest_version';
+requires 'get_download_url';
+requires 'get_archive_info';
+
+# versioning scheme
+requires qw(is_valid_version cmp_version);
 
 sub _canon2native_arch {
     my ($self, $arch) = @_;
