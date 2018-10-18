@@ -6,6 +6,7 @@ package Software::Catalog::Util;
 use 5.010001;
 use strict;
 use warnings;
+use Log::ger;
 
 our %SPEC;
 
@@ -46,16 +47,22 @@ sub extract_from_url {
             $lwp_res->message ? ": " . $lwp_res->message : "")];
     }
 
+    my $res;
     if ($args{re}) {
-        unless ($lwp_res->content =~ $args{re}) {
-            return [543, "Couldn't match pattern $args{re} against ".
+        log_trace "Finding version from $args{url} using regex $args{re} ...";
+        if ($lwp_res->content =~ $args{re}) {
+            $res = [200, "OK", $1];
+        } else {
+            $res = [543, "Couldn't match pattern $args{re} against ".
                         "content of URL '$args{url}'"];
         }
-        return [200, "OK", $1];
     } else {
-        return $args{code}->(
+        log_trace "Finding version from $args{url} using code ...";
+        $res = $args{code}->(
             content => $lwp_res->content, _lwp_res => $lwp_res);
     }
+    log_trace "Result: %s", $res;
+    $res;
 }
 
 1;
