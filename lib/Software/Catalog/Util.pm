@@ -29,6 +29,9 @@ $SPEC{extract_from_url} = {
         code => {
             schema => 'code*',
         },
+        all => {
+            schema => 'bool*',
+        },
     },
     args_rels => {
         req_one => [qw/re code/],
@@ -50,11 +53,20 @@ sub extract_from_url {
     my $res;
     if ($args{re}) {
         log_trace "Finding version from $args{url} using regex $args{re} ...";
-        if ($lwp_res->content =~ $args{re}) {
-            $res = [200, "OK", $1];
+        if ($args{all}) {
+            my $content = $lwp_res->content;
+            my %m;
+            while ($content =~ /$args{re}/g) {
+                $m{$1}++;
+            }
+            $res = [200, "OK (all)", [sort keys %m]];
         } else {
-            $res = [543, "Couldn't match pattern $args{re} against ".
-                        "content of URL '$args{url}'"];
+            if ($lwp_res->content =~ $args{re}) {
+                $res = [200, "OK", $1];
+            } else {
+                $res = [543, "Couldn't match pattern $args{re} against ".
+                            "content of URL '$args{url}'"];
+            }
         }
     } else {
         log_trace "Finding version from $args{url} using code ...";
