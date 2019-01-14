@@ -7,11 +7,14 @@ use Role::Tiny;
 
 requires 'canon2native_arch_map';
 requires 'get_latest_version';
+# requires qw(get_available_versions); # optional for now. args: arch.
 requires 'get_download_url';
+# requires qw(get_release_note); # optional for now. args: arch, version
 requires 'get_archive_info';
 
 # versioning scheme
 requires qw(is_valid_version cmp_version);
+
 
 sub _canon2native_arch {
     my ($self, $arch) = @_;
