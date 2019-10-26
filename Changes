@@ -1,3 +1,12 @@
+1.0.6   2019-10-26  Released-By: PERLANCAR; Urgency: high
+
+	[INCOMPATIBLE CHANGES]
+
+        - Role::Software: rename get_latest_version -> latest_version,
+          get_download_url -> download_url, get_archive_info -> archive_info,
+          plan to get everything with a method for maximum flexibility.
+
+
 1.0.5   2019-01-14  Released-By: PERLANCAR
 
 	- extract_from_url(): Add option all.
