@@ -9,27 +9,34 @@ use Role::Tiny;
 
 use PerlX::Maybe;
 
-sub _detect_arch {
-    require Config; Config->import;
-    my $archname = do { no strict 'vars'; no warnings 'once'; $Config{archname} };
-    if ($archname =~ /\Ax86-linux/) {
-        return "linux-x86"; # linux i386
-    } elsif ($archname =~ /\Ax86-linux/) {
-    } elsif ($archname =~ /\Ax86_64-linux/) {
-        return "linux-x86_64";
-    } elsif ($archname =~ /\AMSWin32-x86(-|\z)/) {
-        return "win32";
-    } elsif ($archname =~ /\AMSWin32-x64(-|\z)/) {
-        return "win64";
-    } else {
-        die "Unsupported arch '$archname'";
-    }
-}
-
 sub available_archs {
     my $self = shift;
     sort keys %{ $self->canon2native_arch_map };
 }
+
+requires 'archive_info';
+
+around archive_info => sub {
+    my $orig = shift;
+    my ($self, %args) = @_;
+
+    # supply default for 'arch' argument
+    if (!defined $args{arch}) {
+        $args{arch} = $self->_detect_arch;
+    }
+
+    # supply default for 'version' argument
+    if (!defined $args{version}) {
+        my $verres = $self->latest_version(maybe arch => $args{arch});
+        return [500, "Can't get latest version: $verres->[0] - $verres->[1]"]
+            unless $verres->[0] == 200;
+        $args{version} = $verres->[2];
+        $args{alternate_version} = $verres->[3]{'func.alternate_version'}
+            if defined $verres->[3]{'func.alternate_version'};
+    }
+
+    $orig->($self, %args);
+};
 
 requires 'available_versions';
 
@@ -39,7 +46,8 @@ around available_versions => sub {
 
     # supply default for 'arch' argument
     if (!defined $args{arch}) {
-        $args{arch} = $self->_detect_arch;
+        require Software::Catalog::Util;
+        $args{arch} = Software::Catalog::Util::detect_arch();
     }
 
     $orig->($self, %args);
@@ -66,7 +74,7 @@ around latest_version => sub {
         $args{arch} = $self->_detect_arch;
     }
 
-    $orig->(@_);
+    $orig->($self, %args);
 };
 
 requires 'download_url';
@@ -90,7 +98,31 @@ around download_url => sub {
             if defined $verres->[3]{'func.alternate_version'};
     }
 
-    $orig->(@_);
+    $orig->($self, %args);
+};
+
+requires 'release_note';
+
+around release_note => sub {
+    my $orig = shift;
+    my ($self, %args) = @_;
+
+    # supply default for 'arch' argument
+    if (!defined $args{arch}) {
+        $args{arch} = $self->_detect_arch;
+    }
+
+    # supply default for 'version' argument
+    if (!defined $args{version}) {
+        my $verres = $self->latest_version(maybe arch => $args{arch});
+        return [500, "Can't get latest version: $verres->[0] - $verres->[1]"]
+            unless $verres->[0] == 200;
+        $args{version} = $verres->[2];
+        $args{alternate_version} = $verres->[3]{'func.alternate_version'}
+            if defined $verres->[3]{'func.alternate_version'};
+    }
+
+    $orig->($self, %args);
 };
 
 sub _canon2native_arch {
@@ -125,6 +157,47 @@ sub _native2canon_arch {
 # ABSTRACT: Role for software
 
 =head1 REQUIRED METHODS
+
+=head2 archive_info
+
+Get information about an archive of software download.
+
+Usage:
+
+ my $envres = $swobj->archive_info(%args);
+ # sample result:
+ # [200, "OK", {
+ #   programs => [
+ #     {name=>"firefox", path=>"/"},
+ #   ],
+ # }]
+
+Return L<enveloped result|Rinci::function/"Enveloped result">. The payload is a
+hash that can contain these keys: C<programs> which is an array of C<<
+{name=>"PROGRAM_NAME", path=>"/PATH/"} >> records.
+
+Arguments:
+
+=over
+
+=item * arch
+
+Str, must be one of known architectures (see L</canon2native_arch_map>).
+Optional. If not specified, this role's method modifier will supply
+the default (the architecture the perl interpreter is built on).
+
+=item * format
+
+Str, optional. If software provides several archive formats that might differ in
+structure or other aspects (e.g. ".zip" and ".tar.gz"), the user can choose
+which by passing this argument.
+
+=item * version
+
+Str. Optional. If not specified, this role's method modifier will supply
+the default from L</latest_version>.
+
+=back
 
 =head2 available_versions
 
@@ -192,7 +265,7 @@ software follows a scheme that is supported.
 
 =head2 download_url
 
-Get download URL (and other information about a release).
+Get download URL.
 
 Usage:
 
@@ -200,11 +273,7 @@ Usage:
  # sample result:
  # [200, "OK", "https://www.example.org/foo-1.23.tar.gz"]
 
-Return L<enveloped result|Rinci::function/"Enveloped result">. Aside from the
-download URL, you can also return additional information in the result metadata:
-C<func.archive_info> (a hash that can contain these keys: C<programs> which is
-an array of C<< {name=>"PROGRAM_NAME", path=>"/PATH/"} >>) (see an example in
-L<Software::Catalog::SW::firefox>), C<func.release_note> (a string).
+Return L<enveloped result|Rinci::function/"Enveloped result">.
 
 Arguments:
 
@@ -226,6 +295,23 @@ the default from L</latest_version>.
 =head2 homepage_url
 
 Return the homepage URL.
+
+Arguments: none.
+
+=head2 is_dedicated_profile
+
+Check whether the software uses "dedicated profile".
+
+Usage:
+
+ my $is_dedicated = $swobj->is_dedicated_profile;
+
+This method is created to support Firefox 67+ but can be used by other software
+too. If C<is_dedicated_profile> returns a true value, it means the software
+checks program location for profile and we should not use symlink for latest
+version, e.g. /opt/firefox -> /opt/firefox-70.0 but should copy
+/opt/firefox-70.0 (or later version) to /opt/firefox instead, to avoid changing
+of program location whenever there's a new version.
 
 Arguments: none.
 
@@ -271,27 +357,46 @@ the default from L</latest_version>.
 
 =back
 
-=head2 is_dedicated_profile
+=head2 release_note
 
-Check whether the software requires "dedicated profile".
+Get release note.
 
 Usage:
 
- my $is_dedicated = $swobj->is_dedicated_profile;
+ my $envres = $swobj->release_note(%args);
+ # sample result:
+ # [200, "OK", "..."]
 
-This method is created to support Firefox 67+ but can be used by other software
-too. If C<is_dedicated_profile> returns a true value, it means the software
-checks program location for profile and we should not use symlink for latest
-version, e.g. /opt/firefox -> /opt/firefox-70.0 but should copy
-/opt/firefox-70.0 (or later version) to /opt/firefox instead, to avoid changing
-of program location whenever there's a new version.
+Return L<enveloped result|Rinci::function/"Enveloped result">.
+
+Arguments:
+
+=over
+
+=item * arch
+
+Str, must be one of known architectures (see L</canon2native_arch_map>).
+Optional. If not specified, this role's method modifier will supply
+the default (the architecture the perl interpreter is built on).
+
+=item * format
+
+Str, optional. If software provides several release note formats, the user can
+choose which by passing this argument. A sane default will be chosen.
+
+=item * version
+
+Str. Optional. If not specified, this role's method modifier will supply
+the default from L</latest_version>.
+
+=back
 
 
 =head1 PROVIDED METHODS
 
 =head2 available_archs
 
-Return a sorted list of
+Return a sorted list of available architectures for a software.
 
  my @archs = $swobj->available_archs;
 

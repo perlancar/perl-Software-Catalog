@@ -77,5 +77,25 @@ sub extract_from_url {
     $res;
 }
 
+$SPEC{detect_arch} = {
+    v => 1.1,
+};
+sub detect_arch {
+    require Config; Config->import;
+    my $archname = do { no strict 'vars'; no warnings 'once'; $Config{archname} };
+    if ($archname =~ /\Ax86-linux/) {
+        return "linux-x86"; # linux i386
+    } elsif ($archname =~ /\Ax86-linux/) {
+    } elsif ($archname =~ /\Ax86_64-linux/) {
+        return "linux-x86_64";
+    } elsif ($archname =~ /\AMSWin32-x86(-|\z)/) {
+        return "win32";
+    } elsif ($archname =~ /\AMSWin32-x64(-|\z)/) {
+        return "win64";
+    } else {
+        die "Unsupported arch '$archname'";
+    }
+}
+
 1;
 # ABSTRACT: Utility routines
