@@ -9,9 +9,28 @@ use Role::Tiny;
 
 use PerlX::Maybe;
 
-sub available_archs {
+sub available_platform_labels {
     my $self = shift;
-    sort keys %{ $self->canon2native_arch_map };
+    sort keys %{ $self->platform_labels_to_specs };
+}
+
+sub first_matching_platform_label {
+    require Devel::Platform::Info;
+    require Devel::Platform::Match;
+
+    my ($self, $platform_info) = @_;
+    if (!defined($platform_info)) {
+        $platform_info = Devel::Platform::Info->new->get_info;
+    }
+
+    my $platform_labels_to_specs = $self->platform_labels_to_specs;
+    for my $platform_label (keys %$platform_labels_to_specs) {
+        my $platform_spec = $platform_labels_to_specs->{$platform_label};
+        if (Devel::Platform::Match::match_platform_bool($platform_spec, $platform_info)) {
+            return $platform_label;
+        }
+    }
+    undef;
 }
 
 requires 'archive_info';
@@ -20,14 +39,15 @@ around archive_info => sub {
     my $orig = shift;
     my ($self, %args) = @_;
 
-    # supply default for 'arch' argument
-    if (!defined $args{arch}) {
-        $args{arch} = $self->_detect_arch;
+    # supply default for 'platform_label' argument
+    if (!defined $args{platform_label}) {
+        $args{platform_label} = $self->first_matching_platform_label or
+        return [412, "Platform not supported"];
     }
 
     # supply default for 'version' argument
     if (!defined $args{version}) {
-        my $verres = $self->latest_version(maybe arch => $args{arch});
+        my $verres = $self->latest_version(maybe platform_label => $args{platform_label});
         return [500, "Can't get latest version: $verres->[0] - $verres->[1]"]
             unless $verres->[0] == 200;
         $args{version} = $verres->[2];
@@ -44,16 +64,14 @@ around available_versions => sub {
     my $orig = shift;
     my ($self, %args) = @_;
 
-    # supply default for 'arch' argument
-    if (!defined $args{arch}) {
-        require Software::Catalog::Util;
-        $args{arch} = Software::Catalog::Util::detect_arch();
+    # supply default for 'platform_label' argument
+    if (!defined $args{platform_label}) {
+        $args{platform_label} = $self->first_matching_platform_label or
+        return [412, "Platform not supported"];
     }
 
     $orig->($self, %args);
 };
-
-requires 'canon2native_arch_map';
 
 requires 'cmp_version'; # usually from versioning scheme role
 
@@ -69,13 +87,16 @@ around latest_version => sub {
     my $orig = shift;
     my ($self, %args) = @_;
 
-    # supply default for 'arch' argument
-    if (!defined $args{arch}) {
-        $args{arch} = $self->_detect_arch;
+    # supply default for 'platform_label' argument
+    if (!defined $args{platform_label}) {
+        $args{platform_label} = $self->first_matching_platform_label or
+        return [412, "Platform not supported"];
     }
 
     $orig->($self, %args);
 };
+
+requires 'platform_labels_to_specs';
 
 requires 'download_url';
 
@@ -83,14 +104,15 @@ around download_url => sub {
     my $orig = shift;
     my ($self, %args) = @_;
 
-    # supply default for 'arch' argument
-    if (!defined $args{arch}) {
-        $args{arch} = $self->_detect_arch;
+    # supply default for 'platform_label' argument
+    if (!defined $args{platform_label}) {
+        $args{platform_label} = $self->first_matching_platform_label or
+        return [412, "Platform not supported"];
     }
 
     # supply default for 'version' argument
     if (!defined $args{version}) {
-        my $verres = $self->latest_version(maybe arch => $args{arch});
+        my $verres = $self->latest_version(maybe platform_label => $args{platform_label});
         return [500, "Can't get latest version: $verres->[0] - $verres->[1]"]
             unless $verres->[0] == 200;
         $args{version} = $verres->[2];
@@ -107,14 +129,15 @@ around release_note => sub {
     my $orig = shift;
     my ($self, %args) = @_;
 
-    # supply default for 'arch' argument
-    if (!defined $args{arch}) {
-        $args{arch} = $self->_detect_arch;
+    # supply default for 'platform_label' argument
+    if (!defined $args{platform_label}) {
+        $args{platform_label} = $self->first_matching_platform_label or
+        return [412, "Platform not supported"];
     }
 
     # supply default for 'version' argument
     if (!defined $args{version}) {
-        my $verres = $self->latest_version(maybe arch => $args{arch});
+        my $verres = $self->latest_version(maybe platform_label => $args{platform_label});
         return [500, "Can't get latest version: $verres->[0] - $verres->[1]"]
             unless $verres->[0] == 200;
         $args{version} = $verres->[2];
@@ -124,34 +147,6 @@ around release_note => sub {
 
     $orig->($self, %args);
 };
-
-sub _canon2native_arch {
-    my ($self, $arch) = @_;
-
-    my $map = $self->canon2native_arch_map;
-    my $rmap = {reverse %$map};
-    if ($map->{$arch}) {
-        return $map->{$arch};
-    } elsif ($rmap->{$arch}) {
-        return $arch;
-    } else {
-        die "Unknown arch '$arch'";
-    }
-}
-
-sub _native2canon_arch {
-    my ($self, $arch) = @_;
-
-    my $map = $self->canon2native_arch_map;
-    my $rmap = {reverse %$map};
-    if ($rmap->{$arch}) {
-        return $rmap->{$arch};
-    } elsif ($map->{$arch}) {
-        return $arch;
-    } else {
-        die "Unknown arch '$arch'";
-    }
-}
 
 1;
 # ABSTRACT: Role for software
@@ -180,11 +175,9 @@ Arguments:
 
 =over
 
-=item * arch
+=item * platform_label
 
-Str, must be one of known architectures (see L</canon2native_arch_map>).
-Optional. If not specified, this role's method modifier will supply
-the default (the architecture the perl interpreter is built on).
+Str, ...
 
 =item * format
 
@@ -214,43 +207,15 @@ Arguments:
 
 =over
 
-=item * arch
+=item * platform_label
 
-Str, must be one of known architectures (see L</canon2native_arch_map>).
-Optional. If not specified, this role's method modifier will supply
-the default (the architecture the perl interpreter is built on).
+Str, ...
 
 =back
 
 If you do not want to provide this functionality, you can return something like:
 
  [501, "Not implemented"]
-
-=head2 canon2native_arch_map
-
-Return a mapping of architecture names from canonical to native.
-
- my $hashref = $swobj->canon2native_arch_map;
-
-The canonical architecture names are:
-
- linux-x86        (Linux, Intel x86 32bit)
- linux-x86_64     (Linux, AMD/Intel 64bit)
- win32            (Windows, Intel x86 32bit)
- win64            (Windows, AMD/Intel 64bit)
-
-Since each software might label the architectures differently, you will need to
-provide a mapping. For example:
-
- sub canon2native_arch_map {
-     return +{
-         'linux-x86_64' => 'linux64',
-         'win64' => 'win64',
-     },
- }
-
-When an architecture is not mapped, it is assumed to be unsupported by the
-software.
 
 =head2 cmp_version
 
@@ -279,11 +244,9 @@ Arguments:
 
 =over
 
-=item * arch
+=item * platform_label
 
-Str, must be one of known architectures (see L</canon2native_arch_map>).
-Optional. If not specified, this role's method modifier will supply
-the default (the architecture the perl interpreter is built on).
+Str, ....
 
 =item * version
 
@@ -344,11 +307,9 @@ Arguments:
 
 =over
 
-=item * arch
+=item * platform_label
 
-Str, must be one of known architectures (see L</canon2native_arch_map>).
-Optional. If not specified, this role's method modifier will supply
-the default (the architecture the perl interpreter is built on).
+Str, ....
 
 =item * version
 
@@ -356,6 +317,11 @@ Str. Optional. If not specified, this role's method modifier will supply
 the default from L</latest_version>.
 
 =back
+
+=head2 platform_label_to_spec
+
+List supporter platforms. Must return a hashref of platform labels as key and
+platform specifications as values (see L<Devel::Platform::Match>).
 
 =head2 release_note
 
@@ -373,11 +339,9 @@ Arguments:
 
 =over
 
-=item * arch
+=item * platform_label
 
-Str, must be one of known architectures (see L</canon2native_arch_map>).
-Optional. If not specified, this role's method modifier will supply
-the default (the architecture the perl interpreter is built on).
+Str, ...
 
 =item * format
 
@@ -394,10 +358,10 @@ the default from L</latest_version>.
 
 =head1 PROVIDED METHODS
 
-=head2 available_archs
+=head2 available_platform_labels
 
-Return a sorted list of available architectures for a software.
+Return a sorted list of available platforms for a software.
 
- my @archs = $swobj->available_archs;
+ my @platform_labels = $swobj->available_platform_labels;
 
-This information is retrieved from L</canon2native_arch_map>.
+This information is retrieved from L</platform_label_to_spec>.

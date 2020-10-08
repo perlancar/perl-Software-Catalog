@@ -1,6 +1,8 @@
 package Software::Catalog::Util;
 
+# AUTHORITY
 # DATE
+# DIST
 # VERSION
 
 use 5.010001;
@@ -32,6 +34,9 @@ $SPEC{extract_from_url} = {
         all => {
             schema => 'bool*',
         },
+        agent => {
+            schema => 'str*',
+        },
     },
     args_rels => {
         req_one => [qw/re code/],
@@ -42,8 +47,10 @@ sub extract_from_url {
         require LWP::UserAgent;
         LWP::UserAgent->new;
     };
+    state $orig_agent = $ua->agent;
     my %args = @_;
 
+    $ua->agent( $args{agent} || $orig_agent);
     my $lwp_res = $ua->get($args{url});
     unless ($lwp_res->is_success) {
         return [$lwp_res->code, "Couldn't retrieve URL '$args{url}'" . (
@@ -75,26 +82,6 @@ sub extract_from_url {
     }
     log_trace "Result: %s", $res;
     $res;
-}
-
-$SPEC{detect_arch} = {
-    v => 1.1,
-};
-sub detect_arch {
-    require Config; Config->import;
-    my $archname = do { no strict 'vars'; no warnings 'once'; $Config{archname} };
-    if ($archname =~ /\Ax86-linux/) {
-        return "linux-x86"; # linux i386
-    } elsif ($archname =~ /\Ax86-linux/) {
-    } elsif ($archname =~ /\Ax86_64-linux/) {
-        return "linux-x86_64";
-    } elsif ($archname =~ /\AMSWin32-x86(-|\z)/) {
-        return "win32";
-    } elsif ($archname =~ /\AMSWin32-x64(-|\z)/) {
-        return "win64";
-    } else {
-        die "Unsupported arch '$archname'";
-    }
 }
 
 1;
