@@ -151,6 +151,8 @@ around release_note => sub {
 1;
 # ABSTRACT: Role for software
 
+=for Pod::Coverage ^(.+)$
+
 =head1 REQUIRED METHODS
 
 =head2 archive_info
