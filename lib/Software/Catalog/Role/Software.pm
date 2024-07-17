@@ -1,13 +1,13 @@
 package Software::Catalog::Role::Software;
 
+use Role::Tiny;
+
+use PerlX::Maybe;
+
 # AUTHORITY
 # DATE
 # DIST
 # VERSION
-
-use Role::Tiny;
-
-use PerlX::Maybe;
 
 sub available_platform_labels {
     my $self = shift;

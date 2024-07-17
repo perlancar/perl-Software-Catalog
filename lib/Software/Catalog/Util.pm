@@ -1,10 +1,5 @@
 package Software::Catalog::Util;
 
-# AUTHORITY
-# DATE
-# DIST
-# VERSION
-
 use 5.010001;
 use strict;
 use warnings;
@@ -13,6 +8,12 @@ use Log::ger;
 our %SPEC;
 
 use Exporter qw(import);
+
+# AUTHORITY
+# DATE
+# DIST
+# VERSION
+
 our @EXPORT_OK = qw(
                        extract_from_url
                );

@@ -1,6 +1,10 @@
 package Software::Catalog;
 
+use strict;
+
+# AUTHORITY
 # DATE
+# DIST
 # VERSION
 
 1;
